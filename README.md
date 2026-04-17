@@ -14,9 +14,9 @@ A browser extension for capturing XHR/Fetch API calls during web app pentesting 
 ## Installation
 
 ### Chrome
-1. Unzip the `chrome/` folder
+1. Unzip the `stellar-api-tracker-main/` folder
 2. Go to `chrome://extensions` → enable Developer Mode
-3. Click **Load unpacked** → select the `chrome/` folder
+3. Click **Load unpacked** → select the `stellar-chrome/` folder
 
 ### Firefox
 1. Go to `about:debugging` → This Firefox
