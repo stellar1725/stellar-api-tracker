@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Stellar</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      width: 320px;
+      background: #07080f;
+      color: #e2e8f0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      overflow: hidden;
+    }
+
+    /* Stars background */
+    .stars {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .star {
+      position: absolute;
+      width: 1px; height: 1px;
+      background: #fff;
+      border-radius: 50%;
+      animation: twinkle var(--dur, 3s) infinite var(--delay, 0s);
+      opacity: 0.3;
+    }
+
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.5); }
+    }
+
+    .content { position: relative; z-index: 1; }
+
+    /* Header */
+    .header {
+      background: linear-gradient(180deg, #0d1030 0%, #07080f 100%);
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid #1a1f3a;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo {
+      width: 30px; height: 30px;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .brand-logo svg { width: 100%; height: 100%; }
+
+    .brand-text { line-height: 1.2; }
+
+    .brand-name {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: 2px;
+      background: linear-gradient(90deg, #a5b4fc, #e0e7ff, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .brand-tagline {
+      font-size: 8px;
+      color: #4a5280;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: rgba(34,197,94,0.08);
+      border: 1px solid rgba(34,197,94,0.25);
+      font-size: 9px;
+      color: #4ade80;
+      letter-spacing: 0.5px;
+    }
+
+    .live-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: #22c55e;
+      animation: pulse 1.5s infinite;
+    }
+
+    .live-dot.paused { background: #f59e0b; animation: none; }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.5); }
+      50% { box-shadow: 0 0 0 4px rgba(34,197,94,0); }
+    }
+
+    /* Stats */
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      border-bottom: 1px solid #1a1f3a;
+    }
+
+    .stat {
+      padding: 10px 0;
+      text-align: center;
+      border-right: 1px solid #1a1f3a;
+    }
+    .stat:last-child { border-right: none; }
+
+    .stat-n {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: #818cf8;
+      line-height: 1;
+    }
+
+    .stat-n.green { color: #4ade80; }
+    .stat-n.red { color: #f87171; }
+
+    .stat-l {
+      font-size: 8px;
+      color: #3d4470;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-top: 2px;
+    }
+
+    /* Tab list */
+    .tabs-section {
+      max-height: 160px;
+      overflow-y: auto;
+      border-bottom: 1px solid #1a1f3a;
+    }
+
+    .tabs-section::-webkit-scrollbar { width: 3px; }
+    .tabs-section::-webkit-scrollbar-thumb { background: #1a1f3a; }
+
+    .tabs-header {
+      padding: 7px 12px 4px;
+      font-size: 8px;
+      color: #3d4470;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .tab-item {
+      padding: 6px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      border-bottom: 1px solid #0d0f1f;
+      transition: background 0.15s;
+    }
+
+    .tab-item:hover { background: #0d1030; }
+    .tab-item.selected { background: #10133a; border-left: 2px solid #6366f1; }
+
+    .tab-favicon {
+      width: 12px; height: 12px;
+      border-radius: 2px;
+      background: #1a1f3a;
+      flex-shrink: 0;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tab-info { flex: 1; overflow: hidden; }
+
+    .tab-title {
+      font-size: 10px;
+      color: #94a3b8;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tab-url {
+      font-size: 8px;
+      color: #3d4470;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tab-count {
+      font-size: 9px;
+      background: #1a1f3a;
+      color: #6366f1;
+      padding: 1px 6px;
+      border-radius: 8px;
+      flex-shrink: 0;
+    }
+
+    .tab-count.has-data { background: #1e1b4b; color: #818cf8; }
+
+    /* Actions */
+    .actions {
+      padding: 10px 10px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .btn {
+      padding: 8px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      transition: all 0.15s;
+      letter-spacing: 0.2px;
+    }
+
+    .btn-dashboard {
+      background: linear-gradient(135deg, #312e81, #4c1d95);
+      color: #c4b5fd;
+      border: 1px solid #4338ca;
+      grid-column: 1 / -1;
+    }
+
+    .btn-dashboard:hover { filter: brightness(1.2); }
+
+    .btn-toggle {
+      background: rgba(34,197,94,0.08);
+      color: #4ade80;
+      border: 1px solid rgba(34,197,94,0.2);
+    }
+
+    .btn-toggle.paused {
+      background: rgba(245,158,11,0.08);
+      color: #fbbf24;
+      border-color: rgba(245,158,11,0.2);
+    }
+
+    .btn-clear {
+      background: rgba(239,68,68,0.06);
+      color: #f87171;
+      border: 1px solid rgba(239,68,68,0.15);
+    }
+
+    .btn:hover { filter: brightness(1.15); }
+
+    .no-tabs {
+      padding: 16px;
+      text-align: center;
+      color: #3d4470;
+      font-size: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="stars" id="stars"></div>
+  <div class="content">
+    <div class="header">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="15" cy="15" r="14" fill="url(#bg)" opacity="0.9"/>
+            <!-- Star shape -->
+            <path d="M15 4 L16.5 11 L23 11 L17.5 15 L19.5 22 L15 18 L10.5 22 L12.5 15 L7 11 L13.5 11 Z"
+                  fill="url(#star)" opacity="0.95"/>
+            <!-- Orbit ring -->
+            <ellipse cx="15" cy="15" rx="12" ry="5" stroke="#6366f1" stroke-width="0.5" fill="none" opacity="0.4"
+                     transform="rotate(-20, 15, 15)"/>
+            <!-- Signal dots -->
+            <circle cx="15" cy="3" r="1" fill="#a5b4fc" opacity="0.8"/>
+            <circle cx="25" cy="10" r="0.8" fill="#818cf8" opacity="0.6"/>
+            <defs>
+              <linearGradient id="bg" x1="0" y1="0" x2="30" y2="30">
+                <stop offset="0%" stop-color="#1e1b4b"/>
+                <stop offset="100%" stop-color="#312e81"/>
+              </linearGradient>
+              <linearGradient id="star" x1="7" y1="4" x2="23" y2="22">
+                <stop offset="0%" stop-color="#e0e7ff"/>
+                <stop offset="100%" stop-color="#818cf8"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <div class="brand-name">STELLAR</div>
+          <div class="brand-tagline">API Signal Tracker</div>
+        </div>
+      </div>
+      <div class="live-badge">
+        <div class="live-dot" id="liveDot"></div>
+        <span id="liveText">LIVE</span>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-n" id="totalCalls">0</div>
+        <div class="stat-l">Signals</div>
+      </div>
+      <div class="stat">
+        <div class="stat-n green" id="totalTabs">0</div>
+        <div class="stat-l">Tabs</div>
+      </div>
+      <div class="stat">
+        <div class="stat-n red" id="totalErrors">0</div>
+        <div class="stat-l">Errors</div>
+      </div>
+    </div>
+
+    <div class="tabs-section">
+      <div class="tabs-header">Active Targets</div>
+      <div id="tabList">
+        <div class="no-tabs">Browse any web app to begin capturing signals.</div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-dashboard" id="dashBtn">✦ Open Stellar Dashboard</button>
+      <button class="btn btn-toggle" id="toggleBtn">⏸ Pause</button>
+      <button class="btn btn-clear" id="clearBtn">✕ Clear</button>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

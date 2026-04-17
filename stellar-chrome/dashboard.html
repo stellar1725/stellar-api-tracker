@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Stellar — API Signal Tracker</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+    :root {
+      --bg:       #07080f;
+      --surface:  #0b0d1c;
+      --surface2: #0e1128;
+      --surface3: #111530;
+      --border:   #161b35;
+      --border2:  #1e2448;
+      --text:     #dde2f5;
+      --muted:    #3d4870;
+      --muted2:   #5a6494;
+      --accent:   #6366f1;
+      --accent2:  #818cf8;
+      --green:    #22c55e;
+      --orange:   #f59e0b;
+      --red:      #ef4444;
+      --blue:     #38bdf8;
+      --pink:     #e879f9;
+      --yellow:   #facc15;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body { height: 100%; overflow: hidden; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+    }
+
+    /* ── STARS BG ── */
+    #starfield {
+      position: fixed; inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .star {
+      position: absolute;
+      border-radius: 50%;
+      background: #fff;
+      animation: twinkle var(--d,3s) ease-in-out infinite var(--dl,0s);
+    }
+
+    @keyframes twinkle {
+      0%,100% { opacity:.05; transform:scale(1); }
+      50% { opacity:.4; transform:scale(1.4); }
+    }
+
+    /* ── LAYOUT ── */
+    #app {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      height: 52px;
+      background: linear-gradient(180deg, #0d1130 0%, var(--surface) 100%);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .brand-logo { width: 28px; height: 28px; flex-shrink: 0; }
+    .brand-logo svg { width: 100%; height: 100%; }
+
+    .brand-name {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 17px;
+      letter-spacing: 3px;
+      background: linear-gradient(90deg, #c7d2fe, #ffffff, #a5b4fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .brand-sep {
+      width: 1px; height: 24px;
+      background: var(--border);
+    }
+
+    /* Tab picker */
+    .tab-picker {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .tab-picker::-webkit-scrollbar { display: none; }
+
+    .tab-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+
+    .tab-chip:hover { border-color: var(--border2); background: var(--surface3); }
+
+    .tab-chip.active {
+      background: rgba(99,102,241,0.12);
+      border-color: rgba(99,102,241,0.4);
+    }
+
+    .tab-chip-title {
+      font-size: 10px;
+      color: var(--muted2);
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tab-chip.active .tab-chip-title { color: var(--accent2); }
+
+    .tab-chip-count {
+      font-size: 9px;
+      padding: 1px 6px;
+      border-radius: 8px;
+      background: var(--surface3);
+      color: var(--muted2);
+    }
+
+    .tab-chip.active .tab-chip-count {
+      background: rgba(99,102,241,0.2);
+      color: #a5b4fc;
+    }
+
+    /* Topbar right actions */
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+      margin-left: auto;
+    }
+
+    .live-pill {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: rgba(34,197,94,0.06);
+      border: 1px solid rgba(34,197,94,0.2);
+      font-size: 9px;
+      color: #4ade80;
+    }
+
+    .live-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: livepulse 1.5s infinite;
+    }
+
+    .live-dot.off { background: var(--orange); animation: none; }
+
+    @keyframes livepulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(34,197,94,.5); }
+      50% { box-shadow: 0 0 0 4px rgba(34,197,94,0); }
+    }
+
+    .btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+
+    .btn-ghost {
+      background: var(--surface2);
+      color: var(--muted2);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { color: var(--text); border-color: var(--border2); }
+
+    .btn-pause {
+      background: rgba(34,197,94,0.07);
+      color: #4ade80;
+      border: 1px solid rgba(34,197,94,0.2);
+    }
+    .btn-pause.paused {
+      background: rgba(245,158,11,0.07);
+      color: #fbbf24;
+      border-color: rgba(245,158,11,0.2);
+    }
+
+    .btn-danger {
+      background: rgba(239,68,68,0.06);
+      color: #f87171;
+      border: 1px solid rgba(239,68,68,0.15);
+    }
+
+    /* ── MAIN ── */
+    .main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      overflow: hidden;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) var(--surface);
+    }
+
+    .sidebar-block {
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .block-title {
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    /* Stats */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .stat-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 8px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0.3;
+    }
+
+    .stat-n {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--accent2);
+      line-height: 1;
+    }
+
+    .stat-n.green { color: #4ade80; }
+    .stat-n.orange { color: #fb923c; }
+    .stat-n.red { color: #f87171; }
+
+    .stat-l {
+      font-size: 8px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 3px;
+    }
+
+    /* Method bars */
+    .method-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 5px;
+    }
+
+    .method-tag {
+      font-size: 8px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 3px;
+      min-width: 44px;
+      text-align: center;
+      letter-spacing: 0.3px;
+    }
+
+    .m-GET    { background: #052e16; color: #4ade80; }
+    .m-POST   { background: #1e1b4b; color: #818cf8; }
+    .m-PUT    { background: #451a03; color: #fb923c; }
+    .m-DELETE { background: #3b0764; color: #e879f9; }
+    .m-PATCH  { background: #0c2a3a; color: #38bdf8; }
+    .m-OTHER  { background: var(--surface2); color: var(--muted2); }
+
+    .bar-wrap {
+      flex: 1;
+      height: 5px;
+      background: var(--bg);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .bar { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+    .bar-get    { background: #4ade80; }
+    .bar-post   { background: #818cf8; }
+    .bar-put    { background: #fb923c; }
+    .bar-delete { background: #e879f9; }
+    .bar-patch  { background: #38bdf8; }
+    .bar-other  { background: var(--muted2); }
+
+    .bar-count { font-size: 9px; color: var(--muted2); min-width: 18px; text-align: right; }
+
+    /* Status chips */
+    .status-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+
+    .sc {
+      padding: 3px 9px;
+      border-radius: 12px;
+      font-size: 9px;
+      border: 1px solid;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-weight: 600;
+    }
+
+    .sc:hover { filter: brightness(1.3); }
+    .sc.active-filter { box-shadow: 0 0 0 2px currentColor; }
+
+    .sc-2xx { background: #052e16; color: #4ade80; border-color: #166534; }
+    .sc-3xx { background: #0c1a2e; color: #38bdf8; border-color: #0369a1; }
+    .sc-4xx { background: #431407; color: #fb923c; border-color: #9a3412; }
+    .sc-5xx { background: #2d0e0e; color: #f87171; border-color: #991b1b; }
+    .sc-0   { background: var(--surface2); color: var(--muted2); border-color: var(--border2); }
+
+    /* Hosts */
+    .host-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 6px;
+      border-radius: 4px;
+      background: var(--bg);
+      margin-bottom: 3px;
+    }
+
+    .host-name { font-size: 9px; color: var(--muted2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+    .host-cnt  { font-size: 9px; color: var(--accent2); flex-shrink: 0; margin-left: 6px; }
+
+    /* ── CONTENT AREA ── */
+    .content {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* View tabs */
+    .view-tabs {
+      display: flex;
+      align-items: center;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 16px;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+
+    .vt {
+      padding: 10px 14px;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--muted2);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .vt:hover { color: var(--text); }
+    .vt.active { color: var(--accent2); border-bottom-color: var(--accent); }
+
+    .vt-cnt {
+      background: var(--surface2);
+      padding: 1px 6px;
+      border-radius: 8px;
+      font-size: 8px;
+      color: var(--muted);
+    }
+
+    .vt.active .vt-cnt { background: rgba(99,102,241,.15); color: var(--accent2); }
+
+    /* Search bar */
+    .search-bar {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+      background: var(--surface2);
+    }
+
+    .search-input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      outline: none;
+    }
+
+    .search-input:focus { border-color: var(--accent); }
+    .search-input::placeholder { color: var(--muted); }
+
+    .flt {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 8px;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    /* View pages */
+    .view-page { display: none; flex: 1; overflow: hidden; }
+    .view-page.active { display: flex; flex-direction: column; }
+
+    /* Table */
+    .tbl-wrap {
+      flex: 1;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) var(--bg);
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    thead {
+      position: sticky;
+      top: 0;
+      background: var(--surface2);
+      z-index: 5;
+    }
+
+    th {
+      padding: 8px 12px;
+      text-align: left;
+      font-size: 8px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    th:hover { color: var(--text); }
+    th.sorted { color: var(--accent2); }
+    th.sorted::after { content: ' ↕'; font-size: 7px; }
+
+    td {
+      padding: 7px 12px;
+      border-bottom: 1px solid #0a0c1a;
+      font-size: 11px;
+      vertical-align: middle;
+    }
+
+    tr:hover td { background: var(--surface2); }
+
+    .td-idx { color: var(--muted); font-size: 9px; width: 36px; }
+    .td-method { width: 72px; }
+    .td-status { width: 58px; }
+    .td-url { max-width: 0; width: 100%; }
+    .td-time { width: 110px; white-space: nowrap; }
+    .td-act  { width: 36px; text-align: center; }
+
+    .url-path {
+      color: #94a3b8;
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      display: block;
+    }
+
+    .url-path:hover { color: var(--accent2); }
+
+    .url-host { font-size: 8px; color: var(--muted); }
+
+    .status-val { font-weight: 700; font-size: 11px; }
+    .s2 { color: #4ade80; }
+    .s3 { color: #38bdf8; }
+    .s4 { color: #fb923c; }
+    .s5 { color: #f87171; }
+    .s0 { color: var(--muted2); }
+
+    .ts { color: var(--muted); font-size: 9px; }
+
+    .copy-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 12px;
+      padding: 2px 4px;
+      border-radius: 3px;
+      opacity: 0;
+      transition: all 0.1s;
+    }
+
+    tr:hover .copy-btn { opacity: 1; }
+    .copy-btn:hover { background: var(--border); color: var(--text); }
+
+    /* Timeline */
+    .tl-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) var(--bg);
+    }
+
+    .tl-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 5px;
+      transition: background 0.1s;
+    }
+
+    .tl-item:hover { background: var(--surface2); }
+    .tl-ts { font-size: 9px; color: var(--muted); min-width: 75px; flex-shrink: 0; }
+    .tl-url { flex: 1; color: #94a3b8; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Endpoints */
+    .ep-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) var(--bg);
+    }
+
+    .ep-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 5px;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .ep-item:hover { background: var(--surface2); border-color: var(--border2); }
+
+    .ep-meta { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
+
+    .ep-paths { flex: 1; overflow: hidden; }
+    .ep-path { color: #94a3b8; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ep-host { font-size: 8px; color: var(--muted); }
+
+    .ep-statuses { display: flex; gap: 3px; flex-shrink: 0; align-items: center; }
+    .ep-cnt { background: var(--surface2); color: var(--muted2); padding: 1px 6px; border-radius: 8px; font-size: 9px; }
+
+    /* Empty */
+    .empty {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      gap: 10px;
+    }
+
+    .empty-icon { font-size: 40px; opacity: 0.3; }
+
+    /* Detail panel */
+    .detail {
+      position: fixed;
+      right: 0; top: 52px;
+      width: 400px;
+      height: calc(100vh - 52px);
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.25s ease;
+    }
+
+    .detail.open { transform: translateX(0); }
+
+    .detail-hdr {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .detail-title { flex: 1; overflow: hidden; }
+
+    .detail-method {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .detail-path { color: var(--muted2); font-size: 10px; margin-top: 4px; word-break: break-all; }
+
+    .close-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 16px;
+      cursor: pointer;
+      flex-shrink: 0;
+      padding: 2px 6px;
+    }
+    .close-btn:hover { color: var(--text); }
+
+    .detail-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+    }
+
+    .kv-section { margin-bottom: 16px; }
+    .kv-title { font-size: 8px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 7px; }
+    .kv-row { display: flex; gap: 8px; padding: 5px 8px; background: var(--bg); border-radius: 4px; margin-bottom: 3px; }
+    .kv-k { color: var(--muted2); min-width: 72px; font-size: 10px; flex-shrink: 0; }
+    .kv-v { color: var(--text); font-size: 10px; word-break: break-all; }
+
+    .url-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 10px;
+      color: #94a3b8;
+      word-break: break-all;
+      line-height: 1.6;
+      position: relative;
+    }
+
+    .copy-url-btn {
+      position: absolute;
+      top: 6px; right: 6px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--muted2);
+      font-size: 9px;
+      padding: 2px 6px;
+      cursor: pointer;
+    }
+    .copy-url-btn:hover { color: var(--text); }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 20px; right: 20px;
+      background: var(--surface3);
+      border: 1px solid var(--border2);
+      color: var(--text);
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 11px;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: all 0.2s;
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast-icon { font-size: 14px; }
+
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+  </style>
+</head>
+<body>
+<div id="starfield"></div>
+
+<div id="app">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-logo">
+        <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="14" cy="14" r="13" fill="url(#gbg)"/>
+          <path d="M14 3.5 L15.8 10 L22 10 L17 13.8 L19 20.5 L14 16.5 L9 20.5 L11 13.8 L6 10 L12.2 10 Z"
+                fill="url(#gstar)"/>
+          <ellipse cx="14" cy="14" rx="11" ry="4.5" stroke="#6366f1" stroke-width="0.6" fill="none" opacity="0.5"
+                   transform="rotate(-25, 14, 14)"/>
+          <circle cx="14" cy="2.5" r="1.2" fill="#a5b4fc" opacity="0.8"/>
+          <circle cx="24" cy="8" r="0.8" fill="#818cf8" opacity="0.6"/>
+          <circle cx="3" cy="18" r="0.7" fill="#c7d2fe" opacity="0.5"/>
+          <defs>
+            <linearGradient id="gbg" x1="0" y1="0" x2="28" y2="28">
+              <stop offset="0%" stop-color="#1e1b4b"/>
+              <stop offset="100%" stop-color="#312e81"/>
+            </linearGradient>
+            <linearGradient id="gstar" x1="6" y1="3" x2="22" y2="21">
+              <stop offset="0%" stop-color="#e0e7ff"/>
+              <stop offset="100%" stop-color="#818cf8"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <div class="brand-name">STELLAR</div>
+    </div>
+
+    <div class="brand-sep"></div>
+
+    <!-- Tab chips -->
+    <div class="tab-picker" id="tabPicker">
+      <span style="color:var(--muted);font-size:10px;">Loading targets…</span>
+    </div>
+
+    <!-- Right actions -->
+    <div class="topbar-right">
+      <div class="live-pill">
+        <div class="live-dot" id="liveDot"></div>
+        <span id="liveText">LIVE</span>
+      </div>
+      <button class="btn btn-pause" id="pauseBtn">⏸ Pause</button>
+      <button class="btn btn-ghost" id="exportCsvBtn">↓ CSV</button>
+      <button class="btn btn-ghost" id="exportJsonBtn">↓ JSON</button>
+      <button class="btn btn-danger" id="clearBtn">✕ Clear</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-block">
+        <div class="block-title">Signal Summary</div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-n" id="sTotalCalls">0</div>
+            <div class="stat-l">Signals</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-n green" id="sUniqueUrls">0</div>
+            <div class="stat-l">Unique</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-n orange" id="sHosts">0</div>
+            <div class="stat-l">Hosts</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-n red" id="sErrors">0</div>
+            <div class="stat-l">Errors</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-block">
+        <div class="block-title">Method Breakdown</div>
+        <div id="methodBreakdown"></div>
+      </div>
+
+      <div class="sidebar-block">
+        <div class="block-title">Status Codes</div>
+        <div class="status-chips" id="statusChips"></div>
+      </div>
+
+      <div class="sidebar-block">
+        <div class="block-title">Top Hosts</div>
+        <div id="hostList"></div>
+      </div>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content">
+      <!-- View tabs -->
+      <div class="view-tabs">
+        <button class="vt active" data-v="table">
+          ⊞ Table <span class="vt-cnt" id="cntTable">0</span>
+        </button>
+        <button class="vt" data-v="timeline">
+          ◷ Timeline <span class="vt-cnt" id="cntTimeline">0</span>
+        </button>
+        <button class="vt" data-v="endpoints">
+          ◎ Endpoints <span class="vt-cnt" id="cntEndpoints">0</span>
+        </button>
+      </div>
+
+      <!-- Search -->
+      <div class="search-bar">
+        <input type="text" class="search-input" id="searchInput" placeholder="✦  Filter signals by URL, method, status...">
+        <select class="flt" id="mFilter">
+          <option value="">All Methods</option>
+          <option>GET</option><option>POST</option><option>PUT</option>
+          <option>DELETE</option><option>PATCH</option>
+        </select>
+        <select class="flt" id="sFilter">
+          <option value="">All Status</option>
+          <option value="2">2xx</option>
+          <option value="3">3xx</option>
+          <option value="4">4xx</option>
+          <option value="5">5xx</option>
+          <option value="0">Error</option>
+        </select>
+      </div>
+
+      <!-- Table view -->
+      <div class="view-page active" id="view-table">
+        <div class="tbl-wrap" id="tblWrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="td-idx">#</th>
+                <th class="td-method" data-sort="method">Method</th>
+                <th class="td-status" data-sort="status">Status</th>
+                <th class="td-url" data-sort="url">URL / Endpoint</th>
+                <th class="td-time" data-sort="timestamp">Time</th>
+                <th class="td-act"></th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+          <div class="empty" id="emptyTable" style="display:none;">
+            <div class="empty-icon">✦</div>
+            <div>No signals captured.</div>
+            <div style="font-size:10px;">Browse the target application to track API traffic.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Timeline view -->
+      <div class="view-page" id="view-timeline">
+        <div class="tl-list" id="tlList">
+          <div class="empty">
+            <div class="empty-icon">◷</div>
+            <div>No signals yet.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Endpoints view -->
+      <div class="view-page" id="view-endpoints">
+        <div class="ep-list" id="epList">
+          <div class="empty">
+            <div class="empty-icon">◎</div>
+            <div>No endpoints yet.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Detail panel -->
+<div class="detail" id="detail">
+  <div class="detail-hdr">
+    <div class="detail-title">
+      <div class="detail-method" id="dtMethod"></div>
+      <div class="detail-path" id="dtPath"></div>
+    </div>
+    <button class="close-btn" id="closeDetail">✕</button>
+  </div>
+  <div class="detail-body">
+    <div class="kv-section">
+      <div class="kv-title">Request Info</div>
+      <div id="dtKv"></div>
+    </div>
+    <div class="kv-section">
+      <div class="kv-title">Full URL</div>
+      <div class="url-box" id="dtFullUrl">
+        <button class="copy-url-btn" id="copyUrlBtn">copy</button>
+      </div>
+    </div>
+    <div class="kv-section">
+      <div class="kv-title">Parsed Parameters</div>
+      <div id="dtParams"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <span class="toast-icon" id="toastIcon">✓</span>
+  <span id="toastMsg"></span>
+</div>
+
+<script src="dashboard.js"></script>
+</body>
+</html>
